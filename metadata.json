@@ -1,0 +1,8 @@
+{
+  "name": "Copy of 秒回 MIAHUI - 极速视频匹配",
+  "description": "一个主打‘秒回’体验的极速视频社交应用，致力于让每一次心动都能得到即时回应。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
