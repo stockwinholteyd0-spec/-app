@@ -18,6 +18,8 @@ import Membership from './components/Membership';
 import CustomerService from './components/CustomerService';
 import EditProfile from './components/EditProfile';
 import Settings from './components/Settings';
+import TeenMode from './components/TeenMode';
+import AboutUs from './components/AboutUs';
 import BottomNav from './components/BottomNav';
 import { MOCK_USERS } from './constants';
 
@@ -31,8 +33,14 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : {
       name: '阿正',
       avatar: 'https://picsum.photos/seed/myself/300/300',
+      photos: [
+        'https://picsum.photos/seed/p1/600/800',
+        'https://picsum.photos/seed/p2/600/800',
+        'https://picsum.photos/seed/p3/600/800',
+      ],
+      tags: ['音乐', '摄影', '猫派'],
       city: '上海',
-      bio: '不喜欢客套，只喜欢在这里和你‘秒回’视频。',
+      bio: '不喜欢客套，只喜欢在这里和你‘秒回’视频。愿在平行时空遇到有趣的你。✨',
       gender: '男',
       age: 26,
       education: '本科',
@@ -40,9 +48,9 @@ const App: React.FC = () => {
       weight: '75kg',
       income: '30W+',
       profession: 'UI设计师',
-      isVerified: true,
-      isRealName: true,
-      isPhoneBound: true
+      isVerified: false,
+      isRealName: false,
+      isPhoneBound: false
     };
   });
 
@@ -116,8 +124,14 @@ const App: React.FC = () => {
   };
 
   const startMatch = () => {
-    if (!isVip) { setView(AppView.MEMBERSHIP); return; }
+    if (!isVip && freeCredits <= 0) {
+      setView(AppView.WALLET);
+      return;
+    }
     setView(AppView.MATCHING);
+    if (!isVip) {
+      setFreeCredits(prev => Math.max(0, prev - 1));
+    }
     setTimeout(() => {
       const randomUser = MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)];
       setMatchedUser(randomUser);
@@ -133,6 +147,13 @@ const App: React.FC = () => {
   const openUserDetails = (user: User) => {
     setSelectedUser(user);
     setView(AppView.USER_DETAILS);
+  };
+
+  const handleSearch = (query: string) => {
+    const found = MOCK_USERS.find(u => u.name.includes(query) || u.id === query);
+    if (found) {
+      openUserDetails(found);
+    }
   };
 
   const openChat = (user: User) => {
@@ -154,24 +175,24 @@ const App: React.FC = () => {
     });
   };
 
-  const updateMyProfile = (newProfile: any) => {
-    setMyProfile(newProfile);
-  };
-
   const renderView = () => {
     switch (view) {
       case AppView.SPLASH: return <Splash />;
       case AppView.LOGIN: return <Login onLogin={() => setView(AppView.HOME)} />;
-      case AppView.HOME: return <Home onStartMatch={startMatch} onSelectUser={openUserDetails} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
+      case AppView.HOME: return <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
       case AppView.DISCOVERY: return <Discovery onSelectUser={openUserDetails} />;
       case AppView.MESSAGES: return <MessageList allChats={allChats} onSelectUser={openChat} onMarkAllRead={markAllAsRead} />;
       case AppView.PROFILE:
         return (
           <Profile 
-            onOpenSettings={() => setView(AppView.SETTINGS)} 
+            onOpenSecurity={() => setView(AppView.ACCOUNT_SECURITY)} 
+            onOpenBlacklist={() => setView(AppView.BLACKLIST)}
             onOpenWallet={() => setView(AppView.WALLET)}
             onOpenMembership={() => setView(AppView.MEMBERSHIP)}
+            onOpenCustomerService={() => setView(AppView.CUSTOMER_SERVICE)}
             onEditProfile={() => setView(AppView.EDIT_PROFILE)}
+            onOpenSettings={() => setView(AppView.SETTINGS)}
+            onLogout={handleLogout}
             balance={secondCoins}
             isVip={isVip}
             vipTier={vipTier}
@@ -184,39 +205,38 @@ const App: React.FC = () => {
           <Settings 
             onBack={() => setView(AppView.PROFILE)}
             onOpenSecurity={() => setView(AppView.ACCOUNT_SECURITY)}
-            onOpenBlacklist={() => setView(AppView.BLACKLIST)}
-            onOpenCustomerService={() => setView(AppView.CUSTOMER_SERVICE)}
-            onOpenMembership={() => setView(AppView.MEMBERSHIP)}
+            onOpenTeenMode={() => setView(AppView.TEEN_MODE)}
+            onOpenAboutUs={() => setView(AppView.ABOUT_US)}
             onLogout={handleLogout}
-            isVip={isVip}
-            isRealName={myProfile.isRealName}
           />
         );
+      case AppView.TEEN_MODE: return <TeenMode onBack={() => setView(AppView.SETTINGS)} />;
+      case AppView.ABOUT_US: return <AboutUs onBack={() => setView(AppView.SETTINGS)} />;
       case AppView.EDIT_PROFILE:
         return (
           <EditProfile
             myProfile={myProfile}
             onBack={() => setView(AppView.PROFILE)}
             onSave={(updated) => {
-              updateMyProfile(updated);
+              setMyProfile(updated);
               setView(AppView.PROFILE);
             }}
           />
         );
-      case AppView.WALLET: return <Wallet balance={secondCoins} onBack={() => setView(AppView.PROFILE)} onRecharge={(amount) => setSecondCoins(prev => prev + amount)} />;
-      case AppView.MEMBERSHIP: return <Membership onBack={() => (view === AppView.SETTINGS ? setView(AppView.SETTINGS) : setView(AppView.PROFILE))} onBecomeVip={(tier) => setVipTier(tier)} isVip={isVip} currentTier={vipTier} />;
-      case AppView.CUSTOMER_SERVICE: return <CustomerService onBack={() => setView(AppView.SETTINGS)} />;
+      case AppView.WALLET: return <Wallet balance={secondCoins} onBack={() => setView(AppView.PROFILE)} onRecharge={(amount) => setSecondCoins(prev => prev + amount)} onOpenMembership={() => setView(AppView.MEMBERSHIP)} />;
+      case AppView.MEMBERSHIP: return <Membership onBack={() => setView(AppView.PROFILE)} miaCoins={secondCoins} setMiaCoins={setSecondCoins} onBecomeVip={(tier) => setVipTier(tier)} isVip={isVip} currentTier={vipTier} />;
+      case AppView.CUSTOMER_SERVICE: return <CustomerService onBack={() => setView(AppView.PROFILE)} />;
       case AppView.ACCOUNT_SECURITY: return <AccountSecurity onBack={() => setView(AppView.SETTINGS)} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} />;
-      case AppView.BLACKLIST: return <Blacklist onBack={() => setView(AppView.SETTINGS)} />;
+      case AppView.BLACKLIST: return <Blacklist onBack={() => setView(AppView.PROFILE)} />;
       case AppView.MATCHING: return <Matching onCancel={() => setView(AppView.HOME)} />;
-      case AppView.VIDEO_CALL: return matchedUser ? <VideoCall user={matchedUser} onEnd={endCall} myAvatar={myProfile.avatar} /> : <Home onStartMatch={startMatch} onSelectUser={openUserDetails} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
-      case AppView.USER_DETAILS: return selectedUser ? <UserDetails user={selectedUser} onBack={() => setView(AppView.HOME)} onOpenChat={openChat} onStartCall={() => { if (!isVip) { setView(AppView.MEMBERSHIP); return; } setMatchedUser(selectedUser); setView(AppView.VIDEO_CALL); }} /> : <Home onStartMatch={startMatch} onSelectUser={openUserDetails} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
+      case AppView.VIDEO_CALL: return matchedUser ? <VideoCall user={matchedUser} onEnd={endCall} myAvatar={myProfile.avatar} miaCoins={secondCoins} setMiaCoins={setSecondCoins} isVip={isVip} vipTier={vipTier} /> : <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
+      case AppView.USER_DETAILS: return selectedUser ? <UserDetails user={selectedUser} onBack={() => setView(AppView.HOME)} onOpenChat={openChat} onStartCall={() => { if (!isVip && freeCredits <= 0) { setView(AppView.WALLET); return; } setMatchedUser(selectedUser); setView(AppView.VIDEO_CALL); }} /> : <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
       case AppView.CHAT:
         return selectedUser ? (
           <ChatRoom 
             user={selectedUser} 
             onBack={() => setView(AppView.MESSAGES)}
-            onStartCall={() => { if (!isVip) { setView(AppView.MEMBERSHIP); return; } setMatchedUser(selectedUser); setView(AppView.VIDEO_CALL); }}
+            onStartCall={() => { if (!isVip && freeCredits <= 0) { setView(AppView.WALLET); return; } setMatchedUser(selectedUser); setView(AppView.VIDEO_CALL); }}
             miaCoins={secondCoins}
             setMiaCoins={setSecondCoins}
             onOpenWallet={() => setView(AppView.WALLET)}
@@ -230,7 +250,7 @@ const App: React.FC = () => {
             onOpenMembership={() => setView(AppView.MEMBERSHIP)}
           />
         ) : <MessageList allChats={allChats} onSelectUser={openChat} onMarkAllRead={markAllAsRead} />;
-      default: return <Home onStartMatch={startMatch} onSelectUser={openUserDetails} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
+      default: return <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
     }
   };
 

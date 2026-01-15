@@ -16,7 +16,9 @@ export enum AppView {
   MEMBERSHIP = 'MEMBERSHIP',
   CUSTOMER_SERVICE = 'CUSTOMER_SERVICE',
   EDIT_PROFILE = 'EDIT_PROFILE',
-  SETTINGS = 'SETTINGS'
+  SETTINGS = 'SETTINGS',
+  TEEN_MODE = 'TEEN_MODE',
+  ABOUT_US = 'ABOUT_US'
 }
 
 export enum MembershipTier {
@@ -37,7 +39,6 @@ export interface User {
   responseRate: string;
   isVip?: boolean;
   vipTier?: MembershipTier;
-  // Detailed Profile Fields
   bio: string;
   gender: string;
   education: string;

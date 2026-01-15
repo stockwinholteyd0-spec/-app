@@ -10,6 +10,13 @@ export const COLORS = {
   gold: '#d4af37'
 };
 
+export const INTEREST_TAGS = [
+  '音乐', '摄影', '旅行', '美食', '健身', 
+  '游戏', '阅读', '电影', '猫派', '狗派', 
+  '艺术', '时尚', '科技', '二次元', '剧本杀',
+  'K歌', '咖啡', '露营', '瑜伽', '发呆'
+];
+
 export const MOCK_USERS: User[] = [
   {
     id: '1',
