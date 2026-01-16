@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppView, User, MembershipTier, Message } from './types';
 import Splash from './components/Splash';
 import Login from './components/Login';
@@ -23,11 +23,60 @@ import AboutUs from './components/AboutUs';
 import BottomNav from './components/BottomNav';
 import { MOCK_USERS } from './constants';
 
+// Simple notification sound (Ding)
+const NOTIFICATION_SOUND = "data:audio/mp3;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
+
 const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.SPLASH);
   const [matchedUser, setMatchedUser] = useState<User | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
+  // Notification Settings
+  const [notifSettings, setNotifSettings] = useState(() => {
+    const saved = localStorage.getItem('appNotifSettings');
+    return saved ? JSON.parse(saved) : {
+      newMsg: true,
+      sound: true,
+      vibration: false
+    };
+  });
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // State for Blocked Users (Shielded - cannot message)
+  const [shieldedUsers, setShieldedUsers] = useState<string[]>([]);
+  // State for Blacklisted Users (Blacklisted - cannot message + hide info)
+  const [blacklistedUsers, setBlacklistedUsers] = useState<string[]>([]);
+
+  // Teen Mode State
+  const [isTeenMode, setIsTeenMode] = useState(() => {
+    return localStorage.getItem('isTeenMode') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('isTeenMode', String(isTeenMode));
+  }, [isTeenMode]);
+
+  useEffect(() => {
+    localStorage.setItem('appNotifSettings', JSON.stringify(notifSettings));
+  }, [notifSettings]);
+
+  // Initialize Audio
+  useEffect(() => {
+    audioRef.current = new Audio(NOTIFICATION_SOUND);
+  }, []);
+
+  const playNotificationSound = () => {
+    if (notifSettings.newMsg && notifSettings.sound && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.log("Audio play failed (interaction required first)", e));
+      
+      if (notifSettings.vibration && navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+    }
+  };
+
   const [myProfile, setMyProfile] = useState(() => {
     const saved = localStorage.getItem('myProfile');
     return saved ? JSON.parse(saved) : {
@@ -105,6 +154,20 @@ const App: React.FC = () => {
     }
   }, [view]);
 
+  // Teen Mode Curfew Check (Simulated)
+  const checkTeenModeCurfew = () => {
+    if (isTeenMode) {
+      const hour = new Date().getHours();
+      // 22:00 - 06:00 curfew
+      if (hour >= 22 || hour < 6) {
+        return true;
+      }
+    }
+    return false;
+  };
+  
+  const isCurfew = checkTeenModeCurfew();
+
   const handleLogout = () => {
     setMatchedUser(null);
     setSelectedUser(null);
@@ -118,12 +181,19 @@ const App: React.FC = () => {
     setVipTier(MembershipTier.NONE);
     setFreeCredits(5);
     setAllChats({});
+    setShieldedUsers([]);
+    setBlacklistedUsers([]);
+    setIsTeenMode(false);
     localStorage.clear();
     sessionStorage.clear();
     setView(AppView.LOGIN);
   };
 
   const startMatch = () => {
+    if (isTeenMode) {
+      alert("青少年模式下无法使用随机匹配功能");
+      return;
+    }
     if (!isVip && freeCredits <= 0) {
       setView(AppView.WALLET);
       return;
@@ -135,6 +205,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       const randomUser = MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)];
       setMatchedUser(randomUser);
+      playNotificationSound(); // Play sound on match found
       setView(AppView.VIDEO_CALL);
     }, 3000);
   };
@@ -150,9 +221,19 @@ const App: React.FC = () => {
   };
 
   const handleSearch = (query: string) => {
-    const found = MOCK_USERS.find(u => u.name.includes(query) || u.id === query);
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return;
+
+    // Search by ID (exact) or Name (partial)
+    const found = MOCK_USERS.find(u => 
+      u.id === cleanQuery || 
+      u.name.includes(cleanQuery)
+    );
+
     if (found) {
       openUserDetails(found);
+    } else {
+      alert("未找到该用户，请检查ID或昵称");
     }
   };
 
@@ -174,6 +255,40 @@ const App: React.FC = () => {
       return next;
     });
   };
+
+  // Block handlers
+  const handleBlockUser = (userId: string) => {
+    if (!shieldedUsers.includes(userId)) {
+      setShieldedUsers(prev => [...prev, userId]);
+    }
+  };
+
+  const handleBlacklistUser = (userId: string) => {
+    if (!blacklistedUsers.includes(userId)) {
+      setBlacklistedUsers(prev => [...prev, userId]);
+    }
+  };
+
+  const handleUnblockUser = (userId: string) => {
+    setShieldedUsers(prev => prev.filter(id => id !== userId));
+    setBlacklistedUsers(prev => prev.filter(id => id !== userId));
+  };
+
+  // If Teen Mode Curfew is active, block the entire app except settings/unlock
+  if (isCurfew && view !== AppView.TEEN_MODE && view !== AppView.SETTINGS) {
+    return (
+      <div className="relative w-full h-screen max-w-md mx-auto bg-slate-900 text-white overflow-hidden shadow-2xl flex flex-col items-center justify-center p-8 text-center">
+         <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center text-4xl mb-6">🌙</div>
+         <h2 className="text-2xl font-black mb-2">休息时间</h2>
+         <p className="text-white/60 text-sm mb-10 leading-relaxed">
+           当前为青少年模式宵禁时段 (22:00 - 06:00)。<br/>请放下手机，注意休息。
+         </p>
+         <button onClick={() => setView(AppView.TEEN_MODE)} className="bg-white text-slate-900 px-8 py-3 rounded-full font-black text-sm active:scale-95 transition-transform">
+           关闭青少年模式
+         </button>
+      </div>
+    );
+  }
 
   const renderView = () => {
     switch (view) {
@@ -208,9 +323,18 @@ const App: React.FC = () => {
             onOpenTeenMode={() => setView(AppView.TEEN_MODE)}
             onOpenAboutUs={() => setView(AppView.ABOUT_US)}
             onLogout={handleLogout}
+            notifSettings={notifSettings}
+            setNotifSettings={setNotifSettings}
           />
         );
-      case AppView.TEEN_MODE: return <TeenMode onBack={() => setView(AppView.SETTINGS)} />;
+      case AppView.TEEN_MODE: 
+        return (
+          <TeenMode 
+            onBack={() => setView(AppView.SETTINGS)} 
+            isEnabled={isTeenMode} 
+            toggleMode={(val) => setIsTeenMode(val)} 
+          />
+        );
       case AppView.ABOUT_US: return <AboutUs onBack={() => setView(AppView.SETTINGS)} />;
       case AppView.EDIT_PROFILE:
         return (
@@ -223,14 +347,48 @@ const App: React.FC = () => {
             }}
           />
         );
-      case AppView.WALLET: return <Wallet balance={secondCoins} onBack={() => setView(AppView.PROFILE)} onRecharge={(amount) => setSecondCoins(prev => prev + amount)} onOpenMembership={() => setView(AppView.MEMBERSHIP)} />;
+      case AppView.WALLET: 
+        return (
+          <Wallet 
+            balance={secondCoins} 
+            onBack={() => setView(AppView.PROFILE)} 
+            onRecharge={(amount) => setSecondCoins(prev => prev + amount)} 
+            onOpenMembership={() => setView(AppView.MEMBERSHIP)} 
+            isTeenMode={isTeenMode}
+          />
+        );
       case AppView.MEMBERSHIP: return <Membership onBack={() => setView(AppView.PROFILE)} miaCoins={secondCoins} setMiaCoins={setSecondCoins} onBecomeVip={(tier) => setVipTier(tier)} isVip={isVip} currentTier={vipTier} />;
       case AppView.CUSTOMER_SERVICE: return <CustomerService onBack={() => setView(AppView.PROFILE)} />;
       case AppView.ACCOUNT_SECURITY: return <AccountSecurity onBack={() => setView(AppView.SETTINGS)} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} />;
-      case AppView.BLACKLIST: return <Blacklist onBack={() => setView(AppView.PROFILE)} />;
+      case AppView.BLACKLIST: 
+        const allBlockedIds = Array.from(new Set([...shieldedUsers, ...blacklistedUsers]));
+        return <Blacklist blockedUserIds={allBlockedIds} onUnblock={handleUnblockUser} onBack={() => setView(AppView.PROFILE)} />;
       case AppView.MATCHING: return <Matching onCancel={() => setView(AppView.HOME)} />;
-      case AppView.VIDEO_CALL: return matchedUser ? <VideoCall user={matchedUser} onEnd={endCall} myAvatar={myProfile.avatar} miaCoins={secondCoins} setMiaCoins={setSecondCoins} isVip={isVip} vipTier={vipTier} /> : <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
-      case AppView.USER_DETAILS: return selectedUser ? <UserDetails user={selectedUser} onBack={() => setView(AppView.HOME)} onOpenChat={openChat} onStartCall={() => { if (!isVip && freeCredits <= 0) { setView(AppView.WALLET); return; } setMatchedUser(selectedUser); setView(AppView.VIDEO_CALL); }} /> : <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
+      case AppView.VIDEO_CALL: 
+        return matchedUser ? (
+          <VideoCall 
+            user={matchedUser} 
+            onEnd={endCall} 
+            myAvatar={myProfile.avatar}
+            miaCoins={secondCoins}
+            setMiaCoins={setSecondCoins}
+            isVip={isVip}
+          />
+        ) : <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
+      case AppView.USER_DETAILS: 
+        return selectedUser ? (
+          <UserDetails 
+            user={selectedUser} 
+            onBack={() => setView(AppView.HOME)} 
+            onOpenChat={openChat} 
+            onStartCall={() => { if (!isVip && freeCredits <= 0) { setView(AppView.WALLET); return; } setMatchedUser(selectedUser); setView(AppView.VIDEO_CALL); }}
+            isShielded={shieldedUsers.includes(selectedUser.id)}
+            isBlacklisted={blacklistedUsers.includes(selectedUser.id)}
+            onShieldUser={handleBlockUser}
+            onBlacklistUser={handleBlacklistUser}
+            onUnblockUser={handleUnblockUser}
+          />
+        ) : <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;
       case AppView.CHAT:
         return selectedUser ? (
           <ChatRoom 
@@ -248,6 +406,9 @@ const App: React.FC = () => {
             freeCredits={freeCredits}
             setFreeCredits={setFreeCredits}
             onOpenMembership={() => setView(AppView.MEMBERSHIP)}
+            isBlocked={shieldedUsers.includes(selectedUser.id) || blacklistedUsers.includes(selectedUser.id)}
+            isTeenMode={isTeenMode}
+            onPlaySound={playNotificationSound}
           />
         ) : <MessageList allChats={allChats} onSelectUser={openChat} onMarkAllRead={markAllAsRead} />;
       default: return <Home onStartMatch={startMatch} onSelectUser={openUserDetails} onSearch={handleSearch} isVip={isVip} vipTier={vipTier} freeCredits={freeCredits} />;

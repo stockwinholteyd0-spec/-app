@@ -19,6 +19,23 @@ export const INTEREST_TAGS = [
 
 export const MOCK_USERS: User[] = [
   {
+    id: '8829103',
+    name: '阿正 (测试号)',
+    age: 26,
+    city: '上海',
+    avatar: 'https://picsum.photos/seed/azheng/400/600',
+    isOnline: true,
+    tags: ['音乐', '摄影', '猫派'],
+    responseRate: '100%',
+    bio: '这是一个用于测试搜索功能的账号。',
+    gender: '男',
+    education: '本科',
+    height: '182cm',
+    weight: '75kg',
+    income: '30W+',
+    profession: 'UI设计师'
+  },
+  {
     id: '1',
     name: '林苏',
     age: 22,

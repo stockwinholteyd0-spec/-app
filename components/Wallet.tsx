@@ -8,11 +8,12 @@ interface WalletProps {
   onBack: () => void;
   onRecharge: (coins: number) => void;
   onOpenMembership: () => void;
+  isTeenMode?: boolean;
 }
 
 type PayMethod = 'ALIPAY' | 'WECHAT';
 
-const Wallet: React.FC<WalletProps> = ({ balance, onBack, onRecharge, onOpenMembership }) => {
+const Wallet: React.FC<WalletProps> = ({ balance, onBack, onRecharge, onOpenMembership, isTeenMode }) => {
   const [selectedPkg, setSelectedPkg] = useState<RechargePackage | null>(null);
   const [payMethod, setPayMethod] = useState<PayMethod>('WECHAT');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -20,6 +21,10 @@ const Wallet: React.FC<WalletProps> = ({ balance, onBack, onRecharge, onOpenMemb
   const [isBridging, setIsBridging] = useState(false);
 
   const handlePay = () => {
+    if (isTeenMode) {
+      alert('青少年模式下无法进行充值操作');
+      return;
+    }
     if (!selectedPkg) return;
     setIsProcessing(true);
     setIsBridging(true);
@@ -67,33 +72,58 @@ const Wallet: React.FC<WalletProps> = ({ balance, onBack, onRecharge, onOpenMemb
         <div className="bg-emerald-500 rounded-[40px] p-8 text-white relative overflow-hidden shadow-2xl">
           <p className="text-emerald-100 text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-80 italic">Account Balance</p>
           <div className="flex items-end gap-2"><span className="text-5xl font-[900] tracking-tighter">{balance}</span><span className="text-sm font-black text-emerald-100 mb-2 opacity-60">秒币</span></div>
-          <button onClick={onOpenMembership} className="mt-8 w-full bg-white/20 hover:bg-white/30 text-white py-3 rounded-2xl text-xs font-black uppercase tracking-widest border border-white/10 transition-all">开通会员权益</button>
+          <button onClick={() => !isTeenMode && onOpenMembership()} className={`mt-8 w-full bg-white/20 hover:bg-white/30 text-white py-3 rounded-2xl text-xs font-black uppercase tracking-widest border border-white/10 transition-all ${isTeenMode ? 'opacity-50 cursor-not-allowed' : ''}`}>
+             {isTeenMode ? '青少年模式不可用' : '开通会员权益'}
+          </button>
         </div>
 
         <section>
           <div className="flex items-center justify-between mb-6 px-2"><h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.1em]">请选择充值套餐</h3><span className="text-[10px] text-emerald-500 font-black tracking-widest uppercase">1元 = 10秒币</span></div>
-          <div className="grid grid-cols-3 gap-3">
-            {MOCK_RECHARGE_PACKAGES.map(pkg => (
-              <button key={pkg.id} onClick={() => setSelectedPkg(pkg)} className={`relative group aspect-square rounded-[28px] flex flex-col items-center justify-center transition-all border ${selectedPkg?.id === pkg.id ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-900'}`}>
-                <span className="text-xl font-[900] tracking-tight">{pkg.coins}</span>
-                <div className={`mt-3 px-3 py-1 rounded-full text-[10px] font-black ${selectedPkg?.id === pkg.id ? 'bg-white text-emerald-500' : 'bg-slate-50 text-slate-800'}`}>¥{pkg.price}</div>
-              </button>
-            ))}
-          </div>
+          {isTeenMode ? (
+             <div className="bg-slate-50 rounded-[32px] p-8 text-center border-2 border-dashed border-slate-200">
+                <span className="text-4xl mb-3 block">🔒</span>
+                <p className="text-slate-400 text-xs font-bold">青少年模式下无法进行充值</p>
+             </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              {MOCK_RECHARGE_PACKAGES.map(pkg => (
+                <button key={pkg.id} onClick={() => setSelectedPkg(pkg)} className={`relative group aspect-square rounded-[28px] flex flex-col items-center justify-center transition-all border ${selectedPkg?.id === pkg.id ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-900'}`}>
+                  <span className="text-xl font-[900] tracking-tight">{pkg.coins}</span>
+                  <div className={`mt-3 px-3 py-1 rounded-full text-[10px] font-black ${selectedPkg?.id === pkg.id ? 'bg-white text-emerald-500' : 'bg-slate-50 text-slate-800'}`}>¥{pkg.price}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
-        <section className="bg-white rounded-[32px] p-6 border border-slate-100/50 shadow-sm">
-           <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4 ml-1">选择支付方式</h3>
-           <div className="space-y-3">
-              <div onClick={() => setPayMethod('WECHAT')} className={`flex items-center justify-between p-3 rounded-2xl border ${payMethod === 'WECHAT' ? 'border-emerald-500/30 bg-emerald-50/20' : 'border-transparent'}`}><span className="text-sm font-bold text-slate-800">微信支付</span><div className={`w-6 h-6 rounded-full border-2 ${payMethod === 'WECHAT' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-200'}`}></div></div>
-              <div onClick={() => setPayMethod('ALIPAY')} className={`flex items-center justify-between p-3 rounded-2xl border ${payMethod === 'ALIPAY' ? 'border-emerald-500/30 bg-emerald-50/20' : 'border-transparent'}`}><span className="text-sm font-bold text-slate-800">支付宝支付</span><div className={`w-6 h-6 rounded-full border-2 ${payMethod === 'ALIPAY' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-200'}`}></div></div>
-           </div>
-        </section>
+        {!isTeenMode && (
+          <section className="bg-white rounded-[32px] p-6 border border-slate-100/50 shadow-sm">
+             <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4 ml-1">选择支付方式</h3>
+             <div className="space-y-3">
+                <div onClick={() => setPayMethod('WECHAT')} className={`flex items-center justify-between p-3 rounded-2xl border ${payMethod === 'WECHAT' ? 'border-emerald-500/30 bg-emerald-50/20' : 'border-transparent'}`}><span className="text-sm font-bold text-slate-800">微信支付</span><div className={`w-6 h-6 rounded-full border-2 ${payMethod === 'WECHAT' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-200'}`}></div></div>
+                <div onClick={() => setPayMethod('ALIPAY')} className={`flex items-center justify-between p-3 rounded-2xl border ${payMethod === 'ALIPAY' ? 'border-emerald-500/30 bg-emerald-50/20' : 'border-transparent'}`}><span className="text-sm font-bold text-slate-800">支付宝支付</span><div className={`w-6 h-6 rounded-full border-2 ${payMethod === 'ALIPAY' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-200'}`}></div></div>
+             </div>
+          </section>
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-white border-t border-slate-50 z-40">
-        <button onClick={handlePay} disabled={!selectedPkg || isProcessing} className={`w-full text-white font-[900] py-4 rounded-2xl shadow-xl active:scale-95 transition-all ${selectedPkg ? (payMethod === 'WECHAT' ? 'bg-[#07C160]' : 'bg-[#00A0E9]') : 'bg-slate-100 text-slate-300'}`}>
-          {isProcessing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"></div> : `立即支付 ¥${selectedPkg ? selectedPkg.price : '0.00'}`}
+        <button 
+          onClick={handlePay} 
+          disabled={!selectedPkg || isProcessing || isTeenMode} 
+          className={`w-full text-white font-[900] py-4 rounded-2xl shadow-xl active:scale-95 transition-all ${
+            isTeenMode 
+              ? 'bg-slate-300 cursor-not-allowed' 
+              : selectedPkg 
+                ? (payMethod === 'WECHAT' ? 'bg-[#07C160]' : 'bg-[#00A0E9]') 
+                : 'bg-slate-100 text-slate-300'
+          }`}
+        >
+          {isTeenMode 
+            ? '青少年模式不可充值' 
+            : isProcessing 
+              ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"></div> 
+              : `立即支付 ¥${selectedPkg ? selectedPkg.price : '0.00'}`}
         </button>
       </div>
     </div>

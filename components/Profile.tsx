@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { LightningIcon, VipBadge, MOCK_GIFTS } from '../constants';
 import { MembershipTier, Message } from '../types';
@@ -100,6 +101,9 @@ const Profile: React.FC<ProfileProps> = ({
         </div>
 
         <div className="absolute top-16 right-8 flex gap-3 z-30">
+          <button onClick={onOpenCustomerService} className="w-10 h-10 glass-nav rounded-2xl flex items-center justify-center shadow-xl active:scale-90 transition-transform text-slate-900">
+             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+          </button>
           <button onClick={onEditProfile} className="glass-nav px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-transform">
             编辑资料
           </button>
@@ -154,7 +158,35 @@ const Profile: React.FC<ProfileProps> = ({
            </div>
         </section>
 
-        {/* Assets Wallet Card - MOVED UP */}
+        {/* Membership Card - UNIFIED ENTRANCE */}
+        <section className="animate-reveal">
+          <div className="flex items-center justify-between mb-4 px-2">
+            <h3 className="text-sm font-[900] text-slate-400 tracking-tight italic">尊享会员中心</h3>
+            <button onClick={onOpenMembership} className="text-[#10b981] text-xs font-black flex items-center gap-1">详细特权</button>
+          </div>
+          <div onClick={onOpenMembership} className="relative w-full h-32 rounded-[40px] overflow-hidden group cursor-pointer active:scale-[0.98] transition-all shadow-xl shadow-emerald-500/5 bg-slate-900">
+             {/* Decorative Background */}
+             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-[40px] -translate-y-10 translate-x-10"></div>
+             
+             <div className="absolute inset-0 p-8 flex items-center justify-between">
+                <div className="flex flex-col gap-1 z-10">
+                   <h4 className="text-xl font-black text-white italic tracking-tighter">MIAHUI VIP</h4>
+                   <p className="text-[10px] text-white/60 font-medium tracking-wide">
+                     月卡 / 季卡 / 年卡
+                   </p>
+                   <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md w-fit">
+                      <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                      <span className="text-[8px] font-bold text-white/90">解锁全部心动特权</span>
+                   </div>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-2xl transform rotate-3 group-hover:rotate-12 transition-transform duration-500">
+                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14H11V21L20 10H13Z" /></svg>
+                </div>
+             </div>
+          </div>
+        </section>
+
+        {/* Assets Wallet Card */}
         <section className="animate-reveal">
           <div className="flex items-center justify-between mb-4 px-2">
             <h3 className="text-sm font-[900] text-slate-400 tracking-tight italic">我的资产钱包</h3>
@@ -185,25 +217,6 @@ const Profile: React.FC<ProfileProps> = ({
                 </div>
               ))}
            </div>
-        </section>
-
-        {/* Membership Card */}
-        <section className="animate-reveal">
-          <div className="flex items-center justify-between mb-4 px-2">
-            <h3 className="text-sm font-[900] text-slate-400 tracking-tight italic">尊享会员中心</h3>
-            <button onClick={onOpenMembership} className="text-[#10b981] text-xs font-black flex items-center gap-1">详细特权</button>
-          </div>
-          <div onClick={onOpenMembership} className="relative w-full h-28 rounded-[40px] overflow-hidden group cursor-pointer active:scale-[0.98] transition-all shadow-xl shadow-emerald-500/5 bg-slate-900">
-             <div className="absolute inset-0 p-8 flex items-center justify-between">
-                <div className="flex flex-col gap-0.5">
-                   <h4 className="text-lg font-black text-white italic tracking-tighter">解锁全部心动特权</h4>
-                   <p className="text-[9px] text-white/50 font-black uppercase tracking-[0.2em]">Membership Experience</p>
-                </div>
-                <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-2xl">
-                   <svg className="w-5 h-5 text-slate-900" fill="currentColor" viewBox="0 0 24 24"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.5 3c1.557 0 3.046.727 4 2.015Q12.454 3.615 14 3.015c2.786 0 5.25 2.322 5.25 5.235 0 3.924-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" /></svg>
-                </div>
-             </div>
-          </div>
         </section>
 
         {/* Gift Wall - RECEIVED GIFTS */}

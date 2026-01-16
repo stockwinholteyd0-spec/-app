@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 
 interface SettingsProps {
   onBack: () => void;
@@ -7,22 +7,21 @@ interface SettingsProps {
   onOpenTeenMode: () => void;
   onOpenAboutUs: () => void;
   onLogout: () => void;
+  notifSettings: {
+    newMsg: boolean;
+    sound: boolean;
+    vibration: boolean;
+  };
+  setNotifSettings: (settings: { newMsg: boolean; sound: boolean; vibration: boolean; }) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ onBack, onOpenSecurity, onOpenTeenMode, onOpenAboutUs, onLogout }) => {
-  const [notifSettings, setNotifSettings] = useState(() => {
-    const saved = localStorage.getItem('appNotifSettings');
-    return saved ? JSON.parse(saved) : {
-      newMsg: true,
-      sound: true,
-      vibration: false
-    };
-  });
-
+const Settings: React.FC<SettingsProps> = ({ 
+  onBack, onOpenSecurity, onOpenTeenMode, onOpenAboutUs, onLogout, notifSettings, setNotifSettings 
+}) => {
+  
   const toggleNotif = (key: keyof typeof notifSettings) => {
     const next = { ...notifSettings, [key]: !notifSettings[key] };
     setNotifSettings(next);
-    localStorage.setItem('appNotifSettings', JSON.stringify(next));
   };
 
   const sections = [

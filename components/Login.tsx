@@ -1,15 +1,80 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LightningIcon } from '../constants';
 
 interface LoginProps {
   onLogin: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [isLoading, setIsLoading] = useState(false);
+type LoginView = 'MAIN' | 'PHONE_INPUT';
 
-  const handleSimulatedLogin = (method: string) => {
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [currentView, setCurrentView] = useState<LoginView>('MAIN');
+  const [isLoading, setIsLoading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  
+  // Agreement State
+  const [isAgreed, setIsAgreed] = useState(false);
+  const [shakeAgreement, setShakeAgreement] = useState(false);
+
+  // Phone Login State
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer: any;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  const checkAgreement = (action: () => void) => {
+    if (!isAgreed) {
+      setShakeAgreement(true);
+      showToast('请先阅读并勾选用户协议');
+      setTimeout(() => setShakeAgreement(false), 500);
+      return;
+    }
+    action();
+  };
+
+  // Simulate WeChat Login
+  const handleWeChatLogin = () => {
+    setIsLoading(true);
+    showToast('正在跳转微信...');
+    
+    // Attempt to open WeChat
+    setTimeout(() => {
+       window.location.href = "weixin://";
+    }, 500);
+
+    // Simulate successful callback/login after "returning" from WeChat
+    setTimeout(() => {
+      setIsLoading(false);
+      onLogin();
+    }, 3000);
+  };
+
+  const handleSendCode = () => {
+    if (!phoneNumber || phoneNumber.length < 11) {
+      showToast('请输入正确的手机号');
+      return;
+    }
+    setCountdown(60);
+    showToast('验证码已发送: 8829');
+    // Simulate receiving code
+    setTimeout(() => setVerifyCode('8829'), 1000);
+  };
+
+  const handlePhoneLogin = () => {
+    if (!phoneNumber || !verifyCode) return;
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
@@ -17,8 +82,98 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }, 1500);
   };
 
+  // Render Phone Login View
+  if (currentView === 'PHONE_INPUT') {
+    return (
+      <div className="flex flex-col h-full bg-white animate-in slide-in-from-right duration-300 relative">
+        {toast && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="bg-slate-900/90 backdrop-blur-md text-white px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-2xl">
+              {toast}
+            </div>
+          </div>
+        )}
+
+        <header className="pt-14 px-6 pb-4 flex items-center">
+          <button onClick={() => setCurrentView('MAIN')} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 active:bg-slate-100 transition-colors mr-2">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M15 19l-7-7 7-7" /></svg>
+          </button>
+        </header>
+
+        <div className="px-10 pt-4">
+          <h1 className="text-2xl font-[900] text-slate-900 mb-2">手机号登录</h1>
+          <p className="text-xs text-slate-400 font-medium mb-10">未注册手机号验证通过后将自动注册</p>
+
+          <div className="space-y-6">
+             <div className="space-y-1">
+               <div className="flex items-center border-b border-slate-100 py-4">
+                 <span className="text-sm font-black text-slate-900 mr-4">+86</span>
+                 <input 
+                    type="tel" 
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="请输入手机号码"
+                    className="flex-1 bg-transparent text-lg font-bold text-slate-900 outline-none placeholder:text-slate-300 font-mono"
+                    maxLength={11}
+                 />
+                 {phoneNumber && (
+                   <button onClick={() => setPhoneNumber('')} className="text-slate-300 p-1">
+                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>
+                   </button>
+                 )}
+               </div>
+             </div>
+
+             <div className="space-y-1">
+               <div className="flex items-center border-b border-slate-100 py-4">
+                 <input 
+                    type="number" 
+                    value={verifyCode}
+                    onChange={(e) => setVerifyCode(e.target.value)}
+                    placeholder="输入验证码"
+                    className="flex-1 bg-transparent text-lg font-bold text-slate-900 outline-none placeholder:text-slate-300 font-mono"
+                    maxLength={6}
+                 />
+                 <button 
+                   onClick={handleSendCode}
+                   disabled={countdown > 0 || !phoneNumber}
+                   className={`text-xs font-black px-4 py-2 rounded-xl transition-all ${
+                     countdown > 0 
+                       ? 'text-slate-300 bg-slate-50' 
+                       : phoneNumber 
+                         ? 'text-emerald-500 bg-emerald-50 active:scale-95' 
+                         : 'text-slate-300'
+                   }`}
+                 >
+                   {countdown > 0 ? `${countdown}s 后重发` : '获取验证码'}
+                 </button>
+               </div>
+             </div>
+          </div>
+
+          <button 
+            disabled={isLoading || !phoneNumber || !verifyCode}
+            onClick={handlePhoneLogin}
+            className="w-full mt-12 bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg shadow-slate-900/10 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:scale-100"
+          >
+             {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : '登录 / 注册'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Main Login View
   return (
-    <div className="flex flex-col h-full bg-white animate-in fade-in duration-500">
+    <div className="flex flex-col h-full bg-white animate-in fade-in duration-500 relative">
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-slate-900/90 backdrop-blur-md text-white px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-2xl">
+            {toast}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex flex-col items-center justify-center px-10">
         <div className="relative mb-12">
           <div className="absolute -inset-10 bg-emerald-500/10 rounded-full blur-3xl"></div>
@@ -37,7 +192,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="w-full space-y-4">
           <button 
             disabled={isLoading}
-            onClick={() => handleSimulatedLogin('WeChat')}
+            onClick={() => checkAgreement(handleWeChatLogin)}
             className="w-full bg-[#07C160] text-white font-black py-4 rounded-2xl shadow-lg shadow-green-500/10 active:scale-95 transition-all flex items-center justify-center gap-3"
           >
             {isLoading ? (
@@ -52,33 +207,26 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           <button 
             disabled={isLoading}
-            onClick={() => handleSimulatedLogin('Phone')}
+            onClick={() => checkAgreement(() => setCurrentView('PHONE_INPUT'))}
             className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg shadow-slate-900/10 active:scale-95 transition-all flex items-center justify-center gap-3"
           >
              <span>手机号登录</span>
           </button>
-
-          <div className="flex items-center gap-4 py-4">
-             <div className="flex-1 h-px bg-slate-100"></div>
-             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">其他方式</span>
-             <div className="flex-1 h-px bg-slate-100"></div>
-          </div>
-
-          <div className="flex justify-center gap-6">
-            <button onClick={() => handleSimulatedLogin('Guest')} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 active:scale-90 transition-transform border border-slate-100">
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-            </button>
-            <button onClick={() => handleSimulatedLogin('Apple')} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 active:scale-90 transition-transform border border-slate-100">
-               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05 1.72-3.2 1.72-1.15 0-1.48-.72-2.85-.72-1.37 0-1.78.72-2.85.72-1.07 0-2.14-.77-3.21-1.72-2.31-2.14-3.56-6.11-3.56-8.91 0-2.84 1.48-4.46 3.12-4.46.91 0 1.63.48 2.25.48.62 0 1.15-.48 2.25-.48 1.63 0 3.12 1.62 3.12 4.46 0 1.21-.24 2.53-.72 3.89-.48 1.36-1.14 2.55-2.12 3.56l.37.48zM12.03 5.48c-.06-1.55.93-2.92 2.38-3.48-1.45-.56-3.05.02-3.87 1.44-.82 1.42-.51 3.2.78 4.25-.13.06-.26.09-.39.09-1.29 0-2.45-.92-2.8-2.3z" /></svg>
-            </button>
-          </div>
         </div>
       </div>
 
       <div className="px-10 pb-12">
-        <p className="text-center text-[10px] text-slate-400 font-medium leading-relaxed">
-          登录即代表同意 <span className="text-emerald-500">《用户协议》</span> 和 <span className="text-emerald-500">《隐私政策》</span>
-        </p>
+        <div 
+          className={`flex items-start justify-center gap-2 cursor-pointer transition-transform ${shakeAgreement ? 'translate-x-1' : ''}`}
+          onClick={() => setIsAgreed(!isAgreed)}
+        >
+          <div className={`w-4 h-4 rounded-full border mt-0.5 flex-shrink-0 flex items-center justify-center transition-colors duration-200 ${isAgreed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}`}>
+             <svg className={`w-2.5 h-2.5 text-white transition-transform duration-200 ${isAgreed ? 'scale-100' : 'scale-0'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>
+          </div>
+          <p className="text-[10px] text-slate-400 font-medium leading-relaxed pt-0.5">
+            登录即代表同意 <span className="text-emerald-500 font-bold" onClick={(e) => { e.stopPropagation(); /* Link */ }}>《用户协议》</span> 和 <span className="text-emerald-500 font-bold" onClick={(e) => { e.stopPropagation(); /* Link */ }}>《隐私政策》</span>
+          </p>
+        </div>
       </div>
     </div>
   );

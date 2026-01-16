@@ -19,12 +19,15 @@ interface ChatRoomProps {
   freeCredits: number;
   setFreeCredits: React.Dispatch<React.SetStateAction<number>>;
   onOpenMembership: () => void;
+  isBlocked?: boolean;
+  isTeenMode?: boolean;
+  onPlaySound?: () => void;
 }
 
 type GiftTab = 'POPULAR' | 'LUXURY' | 'SPECIAL';
 
 const ChatRoom: React.FC<ChatRoomProps> = ({ 
-  user, onBack, onStartCall, miaCoins, setMiaCoins, onOpenWallet, isVip, vipTier, persistedMessages, onMessagesUpdate, myAvatar, freeCredits, setFreeCredits, onOpenMembership
+  user, onBack, onStartCall, miaCoins, setMiaCoins, onOpenWallet, isVip, vipTier, persistedMessages, onMessagesUpdate, myAvatar, freeCredits, setFreeCredits, onOpenMembership, isBlocked, isTeenMode, onPlaySound
 }) => {
   const [messages, setMessages] = useState<Message[]>(() => {
     if (persistedMessages.length > 0) return persistedMessages;
@@ -40,9 +43,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
   const [activeGiftTab, setActiveGiftTab] = useState<GiftTab>('POPULAR');
   const [selectedGift, setSelectedGift] = useState<Gift | null>(null);
   const [showTrialExhausted, setShowTrialExhausted] = useState(false);
-  const [giftConfirmation, setGiftConfirmation] = useState<{ giftName: string, userName: string } | null>(null);
+  
+  // New Gift Effect State
+  const [giftEffect, setGiftEffect] = useState<Gift | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const quickGreetings = ["Hi~ 👋", "交个朋友？", "视频聊聊？", "你的声音真好听 🎵", "互关一下呗 ✨", "在干嘛呢？"];
 
   useEffect(() => {
     onMessagesUpdate(messages);
@@ -54,15 +61,6 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
     }
   }, [messages, isTyping]);
 
-  useEffect(() => {
-    if (giftConfirmation) {
-      const timer = setTimeout(() => {
-        setGiftConfirmation(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [giftConfirmation]);
-
   const getDiscountRate = (tier: MembershipTier) => {
     switch (tier) {
       case MembershipTier.ELITE: return 0.8;
@@ -73,6 +71,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
   };
 
   const generateAIReply = async (userMessage: string) => {
+    if (isBlocked) return;
     try {
       setIsTyping(true);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -99,14 +98,26 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
         status: 'sent'
       };
       setMessages(prev => [...prev, reply]);
+      
+      // Trigger sound on incoming message
+      if (onPlaySound) {
+        onPlaySound();
+      }
+
     } catch (error) {
       console.error("AI Reply Error:", error);
       setIsTyping(false);
     }
   };
 
-  const sendMessage = () => {
-    if (!inputText.trim()) return;
+  const sendMessage = (text?: string) => {
+    if (isBlocked) return;
+    
+    // Determine content: if text argument is a string (quick greeting), use it; otherwise use inputText.
+    // Note: onClick passes an event object, so we verify typeof text === 'string'.
+    const content = (typeof text === 'string' && text) ? text : inputText;
+    
+    if (!content.trim()) return;
 
     if (!isVip && freeCredits <= 0) {
       setShowTrialExhausted(true);
@@ -116,15 +127,18 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
     const newMessage: Message = {
       id: Date.now().toString(),
       senderId: 'me',
-      text: inputText,
+      text: content,
       timestamp: new Date(),
       isMe: true,
       status: 'sent'
     };
     
     setMessages(prev => [...prev, newMessage]);
-    const currentInput = inputText;
-    setInputText('');
+    
+    // Only clear input if the sent message came from the input field
+    if (content === inputText) {
+      setInputText('');
+    }
 
     if (!isVip) {
       setFreeCredits(prev => Math.max(0, prev - 1));
@@ -132,11 +146,16 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
     
     setTimeout(() => {
       setMessages(prev => prev.map(m => m.id === newMessage.id ? {...m, status: 'read'} : m));
-      generateAIReply(currentInput);
+      generateAIReply(content);
     }, 800);
   };
 
   const sendGift = () => {
+    if (isBlocked) return;
+    if (isTeenMode) {
+      alert("青少年模式下无法赠送礼物");
+      return;
+    }
     if (!selectedGift) return;
     
     const finalPrice = Math.floor(selectedGift.price * getDiscountRate(vipTier));
@@ -160,7 +179,9 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
     };
     setMessages(prev => [...prev, giftMessage]);
     
-    setGiftConfirmation({ giftName: selectedGift.name, userName: user.name });
+    // Trigger Visual Effect
+    setGiftEffect(selectedGift);
+    setTimeout(() => setGiftEffect(null), 3000);
     
     setShowGiftPanel(false);
     setSelectedGift(null);
@@ -180,17 +201,53 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] animate-in slide-in-from-right duration-300 relative">
-      {giftConfirmation && (
-        <div className="fixed top-28 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className="bg-slate-900/90 backdrop-blur-md px-6 py-3 rounded-[24px] shadow-2xl border border-white/10 flex items-center gap-3">
-            <span className="text-xl">💝</span>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1">成功送出礼物</span>
-              <span className="text-xs font-bold text-white">
-                已赠送 <span className="text-emerald-400">{giftConfirmation.giftName}</span> 给 <span className="text-emerald-400">{giftConfirmation.userName}</span>
-              </span>
-            </div>
-          </div>
+      
+      {/* GIFT SENDING EFFECT OVERLAY */}
+      {giftEffect && (
+        <div className="fixed inset-0 z-[200] pointer-events-none flex items-center justify-center animate-in fade-in duration-300 overflow-hidden">
+           {/* Darker background for pop */}
+           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+           
+           {/* Rotating Rays */}
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent animate-[spin_6s_linear_infinite] opacity-50"></div>
+           
+           {/* Content Container */}
+           <div className="relative flex flex-col items-center z-10 animate-in zoom-in-75 duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)">
+              {/* Glowing Orb */}
+              <div className="absolute inset-0 bg-emerald-500/30 blur-[60px] rounded-full animate-pulse"></div>
+              
+              {/* Gift Icon */}
+              <div className="text-[120px] filter drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] animate-[bounce_1s_infinite]">
+                 {giftEffect.icon}
+              </div>
+              
+              {/* Text info */}
+              <div className="mt-8 text-center">
+                 <h2 className="text-4xl font-[900] text-white italic tracking-tighter drop-shadow-2xl mb-2 animate-in slide-in-from-bottom-4 duration-700">
+                    {giftEffect.name}
+                 </h2>
+                 <div className="inline-block px-6 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full shadow-lg shadow-emerald-500/30 animate-in slide-in-from-bottom-8 duration-1000">
+                    <span className="text-xs font-black text-white uppercase tracking-[0.2em]">送出成功</span>
+                 </div>
+              </div>
+           </div>
+           
+           {/* Confetti Particles */}
+           {[...Array(20)].map((_, i) => (
+             <div 
+               key={i}
+               className="absolute text-2xl animate-[ping_1s_ease-out_infinite]"
+               style={{
+                 left: `${Math.random() * 100}%`,
+                 top: `${Math.random() * 100}%`,
+                 animationDelay: `${Math.random() * 2}s`,
+                 opacity: Math.random() * 0.6 + 0.2,
+                 transform: `scale(${Math.random() * 1.5 + 0.5})`
+               }}
+             >
+               {['✨', '🎉', '💖', '💫'][Math.floor(Math.random() * 4)]}
+             </div>
+           ))}
         </div>
       )}
 
@@ -228,7 +285,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
           <button onClick={onBack} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 active:bg-slate-100 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <div className="flex items-center gap-3 cursor-pointer" onClick={onStartCall}>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => !isBlocked && onStartCall()}>
             <div className="relative">
               <img src={user.avatar} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" />
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
@@ -236,19 +293,23 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
             <div>
               <h3 className="text-sm font-black text-slate-900 leading-none">{user.name}</h3>
               <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-widest mt-1">
-                {isTyping ? '正在输入...' : '在线 · 即刻视频'}
+                {isBlocked ? '不可发送消息' : (isTyping ? '正在输入...' : '在线 · 即刻视频')}
               </p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-           {!isVip && (
+           {!isVip && !isBlocked && (
              <div className="px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100 flex items-center gap-1.5 shadow-sm">
                 <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest italic">Trial {freeCredits}/5</span>
              </div>
            )}
-           <button onClick={onStartCall} className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform">
-             <LightningIcon className="w-5 h-5 text-yellow-400" />
+           <button 
+              onClick={onStartCall} 
+              disabled={isBlocked}
+              className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform ${isBlocked ? 'bg-slate-100 text-slate-300' : 'bg-emerald-50 text-emerald-500'}`}
+           >
+             <LightningIcon className={`w-5 h-5 ${isBlocked ? 'text-slate-300' : 'text-yellow-400'}`} />
            </button>
         </div>
       </header>
@@ -323,7 +384,6 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
         )}
       </div>
 
-      {/* RE-DESIGNED Gift Panel - SHRUNKEN SIZE */}
       {showGiftPanel && (
         <div className="absolute inset-0 z-[100] flex items-end">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300" onClick={() => setShowGiftPanel(false)}></div>
@@ -331,7 +391,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
             
             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-200 rounded-full"></div>
 
-            {/* Panel Header - Smaller spacing */}
+            {/* Panel Header */}
             <div className="px-6 flex items-center justify-between mb-4">
               <div onClick={onOpenWallet} className="flex items-center gap-2 bg-white py-1.5 px-3 rounded-[16px] shadow-sm border border-slate-100 active:scale-95 transition-transform cursor-pointer">
                 <span className="text-base">💰</span>
@@ -359,59 +419,66 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
               </div>
             </div>
             
-            {/* Gift Grid - Smaller items */}
+            {/* Gift Grid */}
             <div className="grid grid-cols-4 gap-y-4 gap-x-2 max-h-[32vh] overflow-y-auto no-scrollbar pb-4 px-3">
-               {filteredGifts.map(gift => {
-                 const isSelected = selectedGift?.id === gift.id;
-                 const discountRate = getDiscountRate(vipTier);
-                 const discountedPrice = Math.floor(gift.price * discountRate);
-                 return (
-                   <button 
-                    key={gift.id} 
-                    onClick={() => setSelectedGift(gift)} 
-                    className={`relative flex flex-col items-center gap-2 p-2 rounded-[28px] transition-all duration-200 outline-none ${
-                      isSelected ? 'bg-emerald-50 shadow-inner' : 'hover:bg-slate-50'
-                    }`}
-                   >
-                      <div className={`relative w-12 h-12 rounded-[20px] flex items-center justify-center text-2xl transition-all duration-300 ${
-                        isSelected ? 'scale-110 -rotate-2 bg-white shadow-lg shadow-emerald-500/5' : 'bg-slate-50 border border-slate-100'
-                      }`}>
-                         {gift.icon}
-                         {isSelected && (
-                           <div className="absolute inset-0 bg-emerald-500/5 rounded-[20px] animate-pulse"></div>
-                         )}
-                      </div>
-                      
-                      <div className="text-center">
-                         <p className={`text-[9px] font-black mb-0.5 transition-colors ${
-                           isSelected ? 'text-emerald-700' : 'text-slate-600'
-                         }`}>{gift.name}</p>
-                         
-                         <div className="flex flex-col items-center">
-                            <div className="flex items-center gap-1">
-                               <span className="text-[6px]">💰</span>
-                               <span className={`text-[9px] font-black tracking-tighter ${
-                                 isSelected ? 'text-emerald-500' : 'text-slate-400'
-                               }`}>{isVip ? discountedPrice : gift.price}</span>
-                            </div>
-                         </div>
-                      </div>
-
-                      {isVip && discountRate < 1 && (
-                        <div className="absolute top-0.5 right-0.5 bg-amber-400 text-black text-[5px] font-black px-1 py-0.5 rounded shadow-sm border border-white tracking-tighter uppercase italic">
-                           -{Math.round((1 - discountRate) * 100)}%
+               {isTeenMode ? (
+                  <div className="col-span-4 py-8 flex flex-col items-center justify-center text-slate-400">
+                    <span className="text-3xl mb-2">🔒</span>
+                    <p className="text-xs font-bold">青少年模式已限制打赏功能</p>
+                  </div>
+               ) : (
+                  filteredGifts.map(gift => {
+                   const isSelected = selectedGift?.id === gift.id;
+                   const discountRate = getDiscountRate(vipTier);
+                   const discountedPrice = Math.floor(gift.price * discountRate);
+                   return (
+                     <button 
+                      key={gift.id} 
+                      onClick={() => setSelectedGift(gift)} 
+                      className={`relative flex flex-col items-center gap-2 p-2 rounded-[28px] transition-all duration-200 outline-none ${
+                        isSelected ? 'bg-emerald-50 shadow-inner' : 'hover:bg-slate-50'
+                      }`}
+                     >
+                        <div className={`relative w-12 h-12 rounded-[20px] flex items-center justify-center text-2xl transition-all duration-300 ${
+                          isSelected ? 'scale-110 -rotate-2 bg-white shadow-lg shadow-emerald-500/5' : 'bg-slate-50 border border-slate-100'
+                        }`}>
+                           {gift.icon}
+                           {isSelected && (
+                             <div className="absolute inset-0 bg-emerald-500/5 rounded-[20px] animate-pulse"></div>
+                           )}
                         </div>
-                      )}
-                      
-                      {isSelected && (
-                        <div className="absolute -bottom-0.5 w-1 h-1 bg-emerald-500 rounded-full"></div>
-                      )}
-                   </button>
-                 );
-               })}
+                        
+                        <div className="text-center">
+                           <p className={`text-[9px] font-black mb-0.5 transition-colors ${
+                             isSelected ? 'text-emerald-700' : 'text-slate-600'
+                           }`}>{gift.name}</p>
+                           
+                           <div className="flex flex-col items-center">
+                              <div className="flex items-center gap-1">
+                                 <span className="text-[6px]">💰</span>
+                                 <span className={`text-[9px] font-black tracking-tighter ${
+                                   isSelected ? 'text-emerald-500' : 'text-slate-400'
+                                 }`}>{isVip ? discountedPrice : gift.price}</span>
+                              </div>
+                           </div>
+                        </div>
+
+                        {isVip && discountRate < 1 && (
+                          <div className="absolute top-0.5 right-0.5 bg-amber-400 text-black text-[5px] font-black px-1 py-0.5 rounded shadow-sm border border-white tracking-tighter uppercase italic">
+                             -{Math.round((1 - discountRate) * 100)}%
+                          </div>
+                        )}
+                        
+                        {isSelected && (
+                          <div className="absolute -bottom-0.5 w-1 h-1 bg-emerald-500 rounded-full"></div>
+                        )}
+                     </button>
+                   );
+                 })
+               )}
             </div>
 
-            {/* Bottom Panel Actions - Shrunken */}
+            {/* Bottom Panel Actions */}
             <div className="mx-4 mt-2 p-4 rounded-[30px] bg-white border border-slate-100 shadow-[0_5px_20px_rgba(0,0,0,0.02)] flex items-center gap-3 animate-in slide-in-from-bottom duration-400">
                <div className="flex-1 min-w-0">
                  {selectedGift ? (
@@ -438,15 +505,15 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
                
                <button 
                 onClick={sendGift} 
-                disabled={!selectedGift} 
+                disabled={!selectedGift || isTeenMode} 
                 className={`px-6 py-3 font-black text-xs rounded-[20px] transition-all flex items-center justify-center gap-1.5 italic uppercase tracking-widest ${
-                  selectedGift 
+                  !isTeenMode && selectedGift 
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/15 active:scale-95' 
                     : 'bg-slate-100 text-slate-300'
                 }`}
                >
-                 {selectedGift && <LightningIcon className="w-3.5 h-3.5 text-yellow-300" />}
-                 立即赠送
+                 {selectedGift && !isTeenMode && <LightningIcon className="w-3.5 h-3.5 text-yellow-300" />}
+                 {isTeenMode ? '限制打赏' : '立即赠送'}
                </button>
             </div>
           </div>
@@ -454,26 +521,47 @@ const ChatRoom: React.FC<ChatRoomProps> = ({
       )}
 
       <div className="px-6 pt-2 pb-10 bg-white/95 backdrop-blur-xl border-t border-slate-50 z-50">
+        {!isBlocked && (
+           <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3">
+             {quickGreetings.map(text => (
+               <button 
+                 key={text}
+                 onClick={() => sendMessage(text)}
+                 className="flex-shrink-0 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-bold text-slate-600 active:scale-95 transition-transform whitespace-nowrap"
+               >
+                 {text}
+               </button>
+             ))}
+           </div>
+        )}
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowGiftPanel(true)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${showGiftPanel ? 'bg-emerald-500 text-white shadow-lg rotate-12' : 'bg-slate-50 text-slate-400 active:scale-90 hover:bg-emerald-50 hover:text-emerald-500'}`}>
-             <span className="text-2xl">🎁</span>
-          </button>
-          <div className="flex-1 relative">
-            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && sendMessage()} placeholder="此刻想聊什么..." className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 transition-all placeholder:text-slate-300" />
-          </div>
-          {inputText.trim() ? (
-            <button onClick={sendMessage} className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-90 transition-all">
-              <svg className="w-6 h-6 rotate-90" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
-            </button>
+          {isBlocked ? (
+             <div className="w-full bg-slate-50 py-4 rounded-2xl text-center">
+               <span className="text-xs font-bold text-slate-400">无法发送消息</span>
+             </div>
           ) : (
-            <div className="flex gap-2">
-              <button className="w-12 h-12 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center active:scale-90 transition-transform">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+            <>
+              <button onClick={() => setShowGiftPanel(true)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${showGiftPanel ? 'bg-emerald-500 text-white shadow-lg rotate-12' : 'bg-slate-50 text-slate-400 active:scale-90 hover:bg-emerald-50 hover:text-emerald-500'}`}>
+                 <span className="text-2xl">🎁</span>
               </button>
-              <button onClick={onStartCall} className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-90 transition-transform">
-                <LightningIcon className="w-6 h-6 text-yellow-300" />
-              </button>
-            </div>
+              <div className="flex-1 relative">
+                <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && sendMessage()} placeholder="此刻想聊什么..." className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 transition-all placeholder:text-slate-300" />
+              </div>
+              {inputText.trim() ? (
+                <button onClick={() => sendMessage()} className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-90 transition-all">
+                  <svg className="w-6 h-6 rotate-90" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button className="w-12 h-12 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center active:scale-90 transition-transform">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                  </button>
+                  <button onClick={onStartCall} className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-90 transition-transform">
+                    <LightningIcon className="w-6 h-6 text-yellow-300" />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -57,13 +57,16 @@ const Membership: React.FC<MembershipProps> = ({ onBack, onBecomeVip, isVip, cur
         <h1 className="text-lg font-black italic tracking-tighter">会员特权中心</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 no-scrollbar space-y-10">
+      <div className="flex-1 overflow-y-auto px-6 pt-8 pb-40 no-scrollbar space-y-8">
         <div className="bg-[#1a1a1a] rounded-[32px] p-6 border border-white/5 flex items-center justify-between">
            <div><p className="text-[10px] text-white/30 uppercase font-black">账户余额</p><p className="text-2xl font-black italic tracking-tighter">{miaCoins} 秒币</p></div>
            <button onClick={onBack} className="bg-white/10 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5">充值</button>
         </div>
 
         <section>
+          <div className="px-2 mb-4">
+             <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">选择会员套餐</h3>
+          </div>
           <div className="grid grid-cols-3 gap-3">
             {MOCK_MEMBERSHIP_PACKAGES.map(pkg => (
               <button key={pkg.id} onClick={() => setSelectedPkg(pkg)} className={`aspect-[1/1.3] rounded-[28px] flex flex-col items-center justify-center border transition-all ${selectedPkg?.id === pkg.id ? 'bg-emerald-500 border-emerald-400 text-white scale-105' : 'bg-white/5 border-white/10 text-white/60'}`}>
@@ -74,6 +77,26 @@ const Membership: React.FC<MembershipProps> = ({ onBack, onBecomeVip, isVip, cur
             ))}
           </div>
         </section>
+
+        {selectedPkg && (
+          <section className="animate-in slide-in-from-bottom duration-500">
+             <div className="px-2 mb-4">
+               <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">当前套餐特权</h3>
+             </div>
+             <div className="bg-[#1a1a1a] rounded-[32px] p-6 border border-white/5">
+                <div className="grid grid-cols-2 gap-4">
+                   {selectedPkg.benefits.map((benefit, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                         </div>
+                         <span className="text-xs font-bold text-white/80">{benefit}</span>
+                      </div>
+                   ))}
+                </div>
+             </div>
+          </section>
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 bg-gradient-to-t from-black z-40">

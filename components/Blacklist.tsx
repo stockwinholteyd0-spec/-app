@@ -1,16 +1,15 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
+import { MOCK_USERS } from '../constants';
 
 interface BlacklistProps {
   onBack: () => void;
+  blockedUserIds: string[];
+  onUnblock: (id: string) => void;
 }
 
-const Blacklist: React.FC<BlacklistProps> = ({ onBack }) => {
-  const [blockedUsers, setBlockedUsers] = useState<Partial<User>[]>([
-    { id: 'b1', name: '不礼貌的人', avatar: 'https://picsum.photos/seed/block1/200/200' },
-    { id: 'b2', name: '推销账号', avatar: 'https://picsum.photos/seed/block2/200/200' },
-  ]);
+const Blacklist: React.FC<BlacklistProps> = ({ onBack, blockedUserIds, onUnblock }) => {
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (message: string) => {
@@ -19,9 +18,14 @@ const Blacklist: React.FC<BlacklistProps> = ({ onBack }) => {
   };
 
   const handleUnblock = (id: string, name: string) => {
-    setBlockedUsers(prev => prev.filter(u => u.id !== id));
-    showToast(`已从黑名单中移除 ${name}`);
+    onUnblock(id);
+    showToast(`已解除对 ${name} 的限制`);
   };
+
+  const blockedUsers = blockedUserIds.map(id => {
+      const user = MOCK_USERS.find(u => u.id === id);
+      return user || { id, name: '未知用户', avatar: 'https://via.placeholder.com/150' } as Partial<User>;
+  });
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] animate-in slide-in-from-right duration-300 relative">
